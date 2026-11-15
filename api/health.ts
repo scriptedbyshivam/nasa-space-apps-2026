@@ -1,6 +1,5 @@
-import type { Request, Response } from 'express';
-import { app } from '../server';
+import { getCopilotHealth } from '../copilotCore';
 
-export default function handler(req: Request, res: Response) {
-  return app(req, res);
+export async function GET() {
+  return Response.json(getCopilotHealth());
 }
