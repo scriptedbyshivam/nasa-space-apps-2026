@@ -8,9 +8,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx server-entry.ts",
     "build": "vite build",
-    "start": "tsx server.ts --production",
+    "start": "tsx server-entry.ts --production",
     "preview": "vite preview",
     "clean": "node -e \"const fs=require('fs'); for (const p of ['dist','server.js']) fs.rmSync(p,{recursive:true,force:true});\"",
     "lint": "tsc --noEmit"
