@@ -98,7 +98,8 @@ Never upload the local `.env` file. Use Vercel environment variables for deploym
 - `POST /api/copilot` — `{ question, history?, context? }`; returns a grounded answer, citations,
   source (`gemini-live` or `grounded-knowledge-base`), model, and optional fallback reason.
 
-Rate limit: 30 requests per minute per IP. Request body limit: 32 KB.
+Rate limit: 30 requests per minute per IP on the local Express server. Vercel deployments
+use the platform's function limits. Request body limit: 32 KB.
 
 ## Project Structure
 
