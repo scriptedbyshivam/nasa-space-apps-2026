@@ -77,18 +77,38 @@ export function AskScienceCopilot({
         }),
       });
 
-      const data = await response.json();
+      const rawBody = await response.text();
+      let data: Record<string, unknown> = {};
+      try {
+        data = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        if (!response.ok) {
+          throw new Error(
+            rawBody.trim() ||
+              `The copilot server returned ${response.status}. Please try again.`
+          );
+        }
+        throw new Error('The copilot server returned an invalid response.');
+      }
+
       if (!response.ok) {
-        throw new Error(data?.error || 'Unable to generate response.');
+        throw new Error(
+          typeof data.error === 'string'
+            ? data.error
+            : `The copilot server returned ${response.status}. Please try again.`
+        );
       }
 
       const aiMsg: CopilotMessage = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: data.answer,
+        content:
+          typeof data.answer === 'string' && data.answer.trim()
+            ? data.answer
+            : 'The copilot returned an empty answer. Please try again.',
         referencedIds: Array.isArray(data.referencedIds) ? data.referencedIds : [],
         citations: Array.isArray(data.citations) ? data.citations : [],
-        dataNotes: data.dataNotes,
+        dataNotes: typeof data.dataNotes === 'string' ? data.dataNotes : undefined,
         source: data.source === 'gemini-live' ? 'gemini-live' : 'grounded-knowledge-base',
         model: typeof data.model === 'string' ? data.model : undefined,
         fallbackReason:
