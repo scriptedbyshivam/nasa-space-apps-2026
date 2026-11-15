@@ -12,8 +12,11 @@ const isGeminiConfigured =
   Boolean(geminiApiKey) && geminiApiKey !== 'MY_GEMINI_API_KEY';
 const GEMINI_TIMEOUT_MS = 25_000;
 
-const ai = isGeminiConfigured
-  ? new GoogleGenAI({
+let ai: GoogleGenAI | null = null;
+
+if (isGeminiConfigured) {
+  try {
+    ai = new GoogleGenAI({
       apiKey: geminiApiKey,
       httpOptions: {
         timeout: GEMINI_TIMEOUT_MS,
@@ -26,8 +29,14 @@ const ai = isGeminiConfigured
           'User-Agent': 'flame-in-freefall',
         },
       },
-    })
-  : null;
+    });
+  } catch (error) {
+    console.error(
+      'Gemini client initialization failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
+  }
+}
 
 const experimentsById = new Map(
   PSI_EXPERIMENTS.map((experiment) => [experiment.psiId, experiment])
