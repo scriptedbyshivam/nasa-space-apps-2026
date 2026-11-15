@@ -18,11 +18,18 @@ app.use(express.json({ limit: '32kb' }));
 const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
 const isGeminiConfigured =
   Boolean(geminiApiKey) && geminiApiKey !== 'MY_GEMINI_API_KEY';
+const GEMINI_TIMEOUT_MS = 25_000;
 
 const ai = isGeminiConfigured
   ? new GoogleGenAI({
       apiKey: geminiApiKey,
       httpOptions: {
+        timeout: GEMINI_TIMEOUT_MS,
+        retryOptions: {
+          attempts: 2,
+          initialDelay: 0.5,
+          maxDelay: 2,
+        },
         headers: {
           'User-Agent': 'flame-in-freefall',
         },
@@ -528,6 +535,7 @@ Instructions:
       model: GEMINI_MODEL,
       contents: prompt,
       config: {
+        abortSignal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
         systemInstruction:
           'You are the Flame in Freefall AI Research Copilot for NASA Space Apps Challenge 2026. Ground every claim in the supplied NASA PSI records. Never fabricate citations, numeric telemetry, author lists, or publication titles. If the records are insufficient, say so.',
         responseMimeType: 'application/json',
@@ -594,6 +602,17 @@ Instructions:
         `Gemini request failed (${GEMINI_MODEL}); grounded local knowledge base used.`
       )
     );
+  }
+});
+
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  const message =
+    error instanceof Error ? error.message : 'Unexpected server error';
+  console.error('API error:', message);
+  if (!res.headersSent) {
+    res.status(500).json({
+      error: 'The research copilot hit a server error. Please try again.',
+    });
   }
 });
 
