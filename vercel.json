@@ -4,9 +4,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "functions": {
-    "api/*.ts": {
+    "api/copilot.ts": {
       "maxDuration": 60,
       "memory": 1024
+    },
+    "api/health.ts": {
+      "maxDuration": 10,
+      "memory": 512
     }
   }
 }
