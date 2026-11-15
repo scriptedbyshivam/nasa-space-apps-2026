@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import type { GoogleGenAI } from '@google/genai';
 import {
   INTELLIGENCE_TOPICS,
   PSI_EXPERIMENTS,
@@ -13,29 +13,58 @@ const isGeminiConfigured =
 const GEMINI_TIMEOUT_MS = 25_000;
 
 let ai: GoogleGenAI | null = null;
+let googleModulePromise: Promise<typeof import('@google/genai') | null> | null = null;
 
-if (isGeminiConfigured) {
-  try {
-    ai = new GoogleGenAI({
-      apiKey: geminiApiKey,
-      httpOptions: {
-        timeout: GEMINI_TIMEOUT_MS,
-        retryOptions: {
-          attempts: 2,
-          initialDelay: 0.5,
-          maxDelay: 2,
-        },
-        headers: {
-          'User-Agent': 'flame-in-freefall',
-        },
-      },
-    });
-  } catch (error) {
-    console.error(
-      'Gemini client initialization failed:',
-      error instanceof Error ? error.message : 'Unknown error'
-    );
+function loadGoogleModule() {
+  if (!isGeminiConfigured) {
+    return Promise.resolve(null);
   }
+
+  if (!googleModulePromise) {
+    googleModulePromise = import('@google/genai').catch((error) => {
+      console.error(
+        'Gemini SDK load failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return null;
+    });
+  }
+
+  return googleModulePromise;
+}
+
+async function getGeminiClient(): Promise<GoogleGenAI | null> {
+  const google = await loadGoogleModule();
+  if (!google) {
+    return null;
+  }
+
+  if (!ai) {
+    try {
+      ai = new google.GoogleGenAI({
+        apiKey: geminiApiKey,
+        httpOptions: {
+          timeout: GEMINI_TIMEOUT_MS,
+          retryOptions: {
+            attempts: 2,
+            initialDelay: 0.5,
+            maxDelay: 2,
+          },
+          headers: {
+            'User-Agent': 'flame-in-freefall',
+          },
+        },
+      });
+    } catch (error) {
+      console.error(
+        'Gemini client initialization failed:',
+        error instanceof Error ? error.message : 'Unknown error'
+      );
+      return null;
+    }
+  }
+
+  return ai;
 }
 
 const experimentsById = new Map(
@@ -423,9 +452,11 @@ function buildDeterministicResponse(
 export function getCopilotHealth() {
   return {
     ok: true,
-    geminiConfigured: Boolean(ai),
-    model: ai ? GEMINI_MODEL : null,
-    mode: ai ? 'gemini-live-with-grounded-fallback' : 'grounded-knowledge-base',
+    geminiConfigured: isGeminiConfigured,
+    model: isGeminiConfigured ? GEMINI_MODEL : null,
+    mode: isGeminiConfigured
+      ? 'gemini-live-with-grounded-fallback'
+      : 'grounded-knowledge-base',
     knowledgeBase: {
       experiments: PSI_EXPERIMENTS.length,
       topics: INTELLIGENCE_TOPICS.length,
@@ -458,11 +489,21 @@ export async function answerCopilot(
 ): Promise<CopilotApiResponse> {
   const ranked = rankExperiments(question);
 
-  if (!ai) {
+  if (!isGeminiConfigured) {
     return buildDeterministicResponse(question);
   }
 
   try {
+    const aiClient = await getGeminiClient();
+    const google = await loadGoogleModule();
+
+    if (!aiClient || !google) {
+      return buildDeterministicResponse(
+        question,
+        'Gemini SDK could not be loaded; grounded local knowledge base used.'
+      );
+    }
+
     const historyTranscript = history
       .map(
         (message) =>
@@ -488,7 +529,7 @@ Instructions:
 5. Distinguish published findings from illustrative or AI-generated material.
 6. Keep the answer concise but technically specific.`;
 
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: GEMINI_MODEL,
       contents: prompt,
       config: {
@@ -497,19 +538,19 @@ Instructions:
           'You are the Flame in Freefall AI Research Copilot for NASA Space Apps Challenge 2026. Ground every claim in the supplied NASA PSI records. Never fabricate citations, numeric telemetry, author lists, or publication titles. If the records are insufficient, say so.',
         responseMimeType: 'application/json',
         responseSchema: {
-          type: Type.OBJECT,
+          type: google.Type.OBJECT,
           properties: {
             answer: {
-              type: Type.STRING,
+              type: google.Type.STRING,
               description: 'Scientific answer grounded strictly in the supplied NASA PSI context.',
             },
             referencedIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
+              type: google.Type.ARRAY,
+              items: { type: google.Type.STRING },
               description: 'NASA PSI IDs actually used, for example ["PSI-26", "PSI-98"].',
             },
             dataNotes: {
-              type: Type.STRING,
+              type: google.Type.STRING,
               description:
                 'Short provenance note distinguishing published findings, illustrative data, and any missing measurements.',
             },
