@@ -103,7 +103,10 @@ Rate limit: 30 requests per minute per IP. Request body limit: 32 KB.
 ## Project Structure
 
 ```text
-server.ts                         Express API + Vite/static server
+serverApp.ts                      Express API wrapper
+copilotCore.ts                    Retrieval + Gemini logic shared by local and Vercel
+server-entry.ts                   Local Vite/static server entry
+api/health.ts, api/copilot.ts     Vercel Web Standard API handlers
 src/App.tsx                       Hash-routed app shell
 src/data/nasaFireData.ts           PSI experiments, charts, topics, research docs
 src/components/science/           Explorer, comparison, charts, copilot UI
