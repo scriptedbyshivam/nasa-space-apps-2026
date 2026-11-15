@@ -80,14 +80,15 @@ the deterministic retrieval/generation fallback.
 
 ## Deploy on Vercel
 
-The repo includes `vercel.json` and a serverless API entry at `api/[...path].ts`.
+The repo includes `vercel.json` and serverless API routes at `api/health.ts` and
+`api/copilot.ts`.
 
 1. Import `scriptedbyshivam/nasa-space-apps-2026` into Vercel.
 2. Keep the detected **Vite** framework preset. Build command: `npm run build`; output: `dist`.
 3. Add environment variables in **Project Settings → Environment Variables**:
    - `GEMINI_API_KEY`
    - `GEMINI_MODEL` (optional; defaults to `gemini-2.5-flash`)
-4. Deploy. `/api/*` routes are handled by the Express app in `api/[...path].ts`; do not set a custom start command.
+4. Deploy. `/api/health` and `/api/copilot` are handled by the Express app through the matching files in `api/`; do not set a custom start command.
 
 Never upload the local `.env` file. Use Vercel environment variables for deployment secrets.
 
